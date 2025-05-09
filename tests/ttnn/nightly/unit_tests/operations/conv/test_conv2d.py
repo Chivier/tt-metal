@@ -280,7 +280,7 @@ def run_conv(
     out = out.reshape(total_batch_size, out_height, out_width, out.shape[-1])
     out = out[:, :, :, :output_channels]
 
-    out = torch.permute(out, (0, 3, 1, 2))
+    ref = torch.permute(ref, (0, 2, 3, 1))
 
     if not fp32_accum:
         pcc = 0.985
@@ -718,13 +718,13 @@ def test_conv_dram(
         has_bias=True,
         fp32_accum=fp32_accum,
         packer_l1_acc=packer_l1_acc,
-        preprocess_weights_on_device=True,  # Github Issue #21044: Failure with preprocess_weights_on_device=False
+        preprocess_weights_on_device=False,  # Github Issue #21044: Failure with preprocess_weights_on_device=False
         transpose_shards=True,
         run_twice=False,
         fast_compare=True,
         slice_config=ttnn.Conv2dSliceConfig(
             slice_type=slice_type,
-            num_slices=num_slices,
+            num_slices=num_slices + 1,
         ),
     )
 
