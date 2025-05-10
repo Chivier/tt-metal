@@ -42,7 +42,11 @@ CBHandle CreateCircularBuffer(
 
 namespace program_dispatch {
 void assemble_device_commands(
-    ProgramCommandSequence& program_command_sequence, Program& program, IDevice* device, SubDeviceId sub_device_id);
+    ProgramCommandSequence& program_command_sequence,
+    Program& program,
+    IDevice* device,
+    SubDeviceId sub_device_id,
+    uint64_t prefetcher_cache_sizeB = 0);
 template <typename T>
 void finalize_program_offsets(T& workload_type, IDevice* device);
 template <typename WorkloadType, typename DeviceType>
@@ -166,7 +170,7 @@ public:
 
     void compile(IDevice* device, bool force_slow_dispatch = false);
 
-    void generate_dispatch_commands(IDevice* device);
+    ProgramCommandSequence& generate_dispatch_commands(IDevice* device, uint64_t prefetcher_cache_sizeB = 0);
 
     void invalidate_circular_buffer_allocation();
 
@@ -189,6 +193,7 @@ public:
     uint32_t get_cb_size(IDevice* device, CoreCoord logical_core, CoreType core_type) const;
     void set_last_used_command_queue_for_testing(CommandQueue* queue);
     CommandQueue* get_last_used_command_queue() const;
+    CommandQueue* get_last_used_command_queue();
     const std::vector<SubDeviceId>& determine_sub_device_ids(const IDevice* device);
     void set_kernels_bin_buffer(const std::shared_ptr<Buffer>& buffer);
     uint32_t get_cb_memory_size() const;
@@ -238,7 +243,11 @@ private:
     bool kernel_binary_always_stored_in_ringbuffer();
 
     friend void program_dispatch::assemble_device_commands(
-        ProgramCommandSequence& program_command_sequence, Program& program, IDevice* device, SubDeviceId sub_device_id);
+        ProgramCommandSequence& program_command_sequence,
+        Program& program,
+        IDevice* device,
+        SubDeviceId sub_device_id,
+        uint64_t prefetcher_cache_sizeB);
     template <typename WorkloadType, typename DeviceType>
     friend uint32_t program_dispatch::program_base_addr_on_core(WorkloadType&, DeviceType, HalProgrammableCoreType);
     friend HWCommandQueue;
