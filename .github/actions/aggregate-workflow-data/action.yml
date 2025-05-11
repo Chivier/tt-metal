@@ -105,7 +105,7 @@ runs:
               - **Total Completed Runs**: ${runs.length}
               - **Successful Runs**: ${successes.length}
               - **Success Rate**: ${(runs.length === 0 ? "N/A" : (successes.length / runs.length * 100).toFixed(2) + "%")}
-              - **Last Run on \`main\` Passed**: ${lastMainPassing} \n
+              - **Last Run on \`main\` Passed**: ${lastMainPassing}
               `;
 
             if (lastMainPassing === '❌' && mainBranchRuns.length > 0) {
@@ -137,7 +137,7 @@ runs:
                 const failureReason = r.failure_message || r.conclusion || '—';
                 const retryAttempt = r.run_attempt ? r.run_attempt - 1 : 0;
 
-                report += `| ${prAuthor} | \`${shortSha}\` | ${prNumber} | ${r.conclusion} | ${retryAttempt} | ${failureReason} | [Run](${r.html_url}) | ${prTitle} |\n`;
+                report += `<pre>${prAuthor} | \`${shortSha}\` | ${prNumber} | ${r.conclusion} | ${retryAttempt} | ${failureReason} | [Run](${r.html_url}) | ${prTitle} |\n`;
               }
             }
 
