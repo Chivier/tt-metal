@@ -2,7 +2,9 @@ name: Aggregate Workflow Data
 
 on:
   workflow_dispatch:
-
+  push:
+    branches:
+      - mchiou/0-aggregate-workflow-report
 jobs:
   APC-Analysis:
     runs-on: ubuntu-latest
