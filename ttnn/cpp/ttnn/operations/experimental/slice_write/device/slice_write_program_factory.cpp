@@ -221,6 +221,9 @@ SliceWriteRuntimeArgs get_slice_write_runtime_args_rm_sharded_input(
     for (auto& i : accumulated_total_per_dim) {
         accumulated_str += std::to_string(i) + ", ";
     }
+    tt::log_debug("Slice Write Accumulated Sticks: {}", accumulated_str);
+    tt::log_debug("Slice Write Unpadded Sticks: {}", unpadded_sticks_str);
+    tt::log_debug("Slice Write Padded Sticks: {}", padded_sticks_str);
 
     using namespace tt::tt_metal::experimental;
     auto src_buffer_alignment = input_tensor.buffer()->buffer_type() == tt::tt_metal::BufferType::DRAM
@@ -291,10 +294,14 @@ SliceWriteRuntimeArgs get_slice_write_runtime_args_rm_sharded_input(
         std::vector<uint32_t> writer_kernel_args = common_writer_kernel_args;
         writer_kernel_args[0] += width_offset;
 
+        uint32_t num_sticks_this_core =
+            std::min(num_sticks_per_core, accumulated_total_per_dim[num_dims - 1] - start_id);
+        ;
+        tt::log_debug("Start ID: {} , Num Sticks: {} for Core: {}", start_id, num_sticks_this_core, core);
         uint32_t addr_offset = 5;  // output buffer addr, output_row_size_bytes, input_row_size_bytes, num_dims
         writer_kernel_args[addr_offset++] = start_id;
-        writer_kernel_args[addr_offset++] = num_sticks_per_core;
-        writer_kernel_args[addr_offset++] = num_sticks_per_core;
+        writer_kernel_args[addr_offset++] = num_sticks_this_core;
+        writer_kernel_args[addr_offset++] = num_sticks_this_core;
         writer_kernel_args[addr_offset] = num_read_per_barrier;
         writer_kernel_args.insert(writer_kernel_args.end(), id_per_dim.begin(), id_per_dim.end());
 
