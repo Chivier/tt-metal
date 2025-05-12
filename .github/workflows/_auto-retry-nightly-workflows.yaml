@@ -92,12 +92,38 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.RETRY_WORKFLOW_TOKEN }}
         run: |
-          echo "Re-running jobs here"
-          # gh api /repos/tenstorrent/tt-metal/actions/runs/${{ steps.get-run-id-and-attempt.outputs.run-id }}/timing
-          gh api --method POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            /repos/tenstorrent/tt-metal/actions/runs/${{ steps.get-run-id-and-attempt.outputs.run-id }}/rerun-failed-jobs
+          echo "should_rerun=true" >> $GITHUB_ENV
+          gh api /repos/tenstorrent/tt-metal/actions/runs/${{ steps.get-run-id-and-attempt.outputs.run-id }}/attempts/${{ steps.get-run-id-and-attempt.outputs.attempt-number }}/jobs --paginate | jq -c '.jobs[] | {id: .id, conclusion: .conclusion}' | while read -r job; do
+            job_id=$(echo "$job" | jq -r '.id')
+            job_conclusion=$(echo "$job" | jq -r '.conclusion')
+
+            # Only read annotations for failed jobs
+            if [[ "$job_conclusion" == "failure" ]]; then
+              echo "Checking annotations for failed job $job_id to see if we have test or infra failures"
+              annotations=$(gh api /repos/tenstorrent/tt-metal/check-runs/$job_id/annotations)
+
+              # Check each annotation for non-infra failures (where the path is not .github)
+              echo "$annotations" | jq -c '.[]' | while read -r annotation; do
+                level=$(echo "$annotation" | jq -r '.annotation_level')
+                path=$(echo "$annotation" | jq -r '.path')
+
+                if [[ "$level" == "failure" && "$path" != ".github"* ]]; then
+                  echo "::notice title=no-continue-test-failure::This workflow failed a test on job https://github.com/tenstorrent/tt-metal/actions/runs/${{ steps.get-run-id-and-attempt.outputs.run-id }}/job/$job_id Not re-trying"
+                  echo "should_rerun=false" >> $GITHUB_ENV
+                fi
+              done
+            fi
+          done
+
+          if [[ "${{ env.should_rerun }}" == "true" ]]; then
+            echo "Re-running jobs here"
+            gh api --method POST \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              /repos/tenstorrent/tt-metal/actions/runs/${{ steps.get-run-id-and-attempt.outputs.run-id }}/rerun-failed-jobs
+          else
+            echo "Skipping rerun due to test failures"
+          fi
       - uses: tenstorrent/tt-metal/.github/actions/slack-report@main
         if: ${{ failure() }}
         with:
