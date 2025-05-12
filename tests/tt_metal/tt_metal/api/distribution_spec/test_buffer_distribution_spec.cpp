@@ -9,6 +9,7 @@
 
 #include "tt_metal/test_utils/stimulus.hpp"
 
+#include <tt-metalium/distributed.hpp>
 #include <tt-metalium/buffer_distribution_spec.hpp>
 #include <tt-metalium/allocator.hpp>
 
@@ -434,6 +435,234 @@ INSTANTIATE_TEST_SUITE_P(
                          {{104, 0, 4}, {116, 32, 4}}}),
                 },
             },
+            // ND sharding with multiple shards per bank; tile layout
+            // page size = 32 x 32 x 2 = 2048 bytes (eg. bfloat16, uint16, etc...)
+            BufferReadWriteParams{
+                BufferDistributionSpecInputs{
+                    .physical_tensor_shape = tt::tt_metal::Shape{5, 2, 64, 96},
+                    .physical_shard_shape = tt::tt_metal::Shape{2, 1, 64, 64},
+                    .page_shape = tt::tt_metal::Shape2D{32, 32},
+                    .bytes_per_element = 2,
+                    .grid = CoreRangeSet(
+                        tt::stl::Span<const CoreRange>({CoreRange({0, 0}, {2, 0}), CoreRange({0, 1}, {1, 1})})),
+                    .shard_orientation = ShardOrientation::ROW_MAJOR,
+                    .buffer_type = BufferType::L1,
+                },
+                BufferReadWriteExpected{
+                    .explicit_core_mapping_in_bytes = BufferReadWriteExpected::ExplicitCoreMappingInBytes(
+                        {{0, 0}, {1, 0}, {2, 0}, {0, 1}, {1, 1}},
+                        {{{0, 0, 2048},
+                          {2048, 2048, 2048},
+                          {6144, 4096, 2048},
+                          {8192, 6144, 2048},
+                          {24576, 8192, 2048},
+                          {26624, 10240, 2048},
+                          {30720, 12288, 2048},
+                          {32768, 14336, 2048},
+                          {53248, 16384, 2048},
+                          {59392, 20480, 2048},
+                          {77824, 24576, 2048},
+                          {83968, 28672, 2048},
+                          {110592, 32768, 2048},
+                          {112640, 34816, 2048},
+                          {116736, 36864, 2048},
+                          {118784, 38912, 2048}},
+                         {{4096, 0, 2048},
+                          {10240, 4096, 2048},
+                          {28672, 8192, 2048},
+                          {34816, 12288, 2048},
+                          {61440, 16384, 2048},
+                          {63488, 18432, 2048},
+                          {67584, 20480, 2048},
+                          {69632, 22528, 2048},
+                          {86016, 24576, 2048},
+                          {88064, 26624, 2048},
+                          {92160, 28672, 2048},
+                          {94208, 30720, 2048},
+                          {114688, 32768, 2048},
+                          {120832, 36864, 2048}},
+                         {{12288, 0, 2048},
+                          {14336, 2048, 2048},
+                          {18432, 4096, 2048},
+                          {20480, 6144, 2048},
+                          {36864, 8192, 2048},
+                          {38912, 10240, 2048},
+                          {43008, 12288, 2048},
+                          {45056, 14336, 2048},
+                          {65536, 16384, 2048},
+                          {71680, 20480, 2048},
+                          {90112, 24576, 2048},
+                          {96256, 28672, 2048}},
+                         {{16384, 0, 2048},
+                          {22528, 4096, 2048},
+                          {40960, 8192, 2048},
+                          {47104, 12288, 2048},
+                          {98304, 16384, 2048},
+                          {100352, 18432, 2048},
+                          {104448, 20480, 2048},
+                          {106496, 22528, 2048}},
+                         {{49152, 0, 2048},
+                          {51200, 2048, 2048},
+                          {55296, 4096, 2048},
+                          {57344, 6144, 2048},
+                          {73728, 8192, 2048},
+                          {75776, 10240, 2048},
+                          {79872, 12288, 2048},
+                          {81920, 14336, 2048},
+                          {102400, 16384, 2048},
+                          {108544, 20480, 2048}}}),
+                },
+            })  // Values
+        )       // Combine
+);
+
+class MeshBufferReadWriteTests : public GenericMeshDeviceFixture,
+                                 public ::testing::WithParamInterface<std::tuple<bool, bool, BufferReadWriteParams>> {};
+
+TEST_P(MeshBufferReadWriteTests, WriteReadLoopback) {
+    const auto& [cq_write, cq_read, params] = GetParam();
+
+    // The expected values are assuming 16 byte alignment, which is true for L1 for WH + BH
+    // If want to extend tests to DRAM or other alignment, can update expected values to be derived from aligned page
+    // size
+    const auto allocator_alignment = mesh_device_->allocator()->get_alignment(params.inputs.buffer_type);
+    ASSERT_EQ(allocator_alignment, 16);
+
+    auto mesh_buffer = create_replicated_mesh_buffer_from_inputs(params.inputs, mesh_device_.get());
+    const auto buffer = mesh_buffer->get_device_buffer(tt::tt_metal::distributed::MeshCoordinate{0, 0});
+
+    const DeviceAddr base_address = buffer->address();
+
+    /* Test is based off of: test_EnqueueWriteBuffer_and_EnqueueReadBuffer
+     * - Initialize buffer and command queue state to 0
+     * - Initialize src vector
+     * - Write to buffer (with either EnqueueWriteBuffer or WriteToBuffer)
+     * - Validate written results are correct per core (using explicitly hard-coded core mapping)
+     * - Read from buffer (with either EnqueueReadBuffer or ReadFromBuffer)
+     */
+
+    // Initialize buffer to 0
+    // {
+    //     std::vector<uint32_t> zeros_vector(buffer->aligned_size_per_bank() / sizeof(uint32_t), 0);
+    //     for (const auto& core : corerange_to_cores(params.inputs.grid)) {
+    //         tt::tt_metal::detail::WriteToDeviceL1(device, core, base_address, zeros_vector, buffer->core_type());
+    //     }
+    // }
+
+    // Clear out command queue
+    // {
+    //     uint16_t channel =
+    //         tt::tt_metal::MetalContext::instance().get_cluster().get_assigned_channel_for_device(device->id());
+    //     chip_id_t mmio_device_id =
+    //         tt::tt_metal::MetalContext::instance().get_cluster().get_associated_mmio_device(device->id());
+    //     uint32_t cq_size = device->sysmem_manager().get_cq_size();
+    //     uint32_t cq_start = MetalContext::instance().dispatch_mem_map().get_host_command_queue_addr(
+    //         CommandQueueHostAddrType::UNRESERVED);
+
+    //     std::vector<uint32_t> cq_zeros((cq_size - cq_start) / sizeof(uint32_t), 0);
+
+    //     tt::tt_metal::MetalContext::instance().get_cluster().write_sysmem(
+    //         cq_zeros.data(),
+    //         (cq_size - cq_start),
+    //         get_absolute_cq_offset(channel, 0, cq_size) + cq_start,
+    //         mmio_device_id,
+    //         channel);
+    // }
+
+    // Create src vector
+    auto src = tt::test_utils::generate_uniform_random_vector<uint8_t>(0, UINT8_MAX, buffer->size() / sizeof(uint8_t));
+
+    if (cq_write) {
+        tt::log_info("Writing with: EnqueueWriteBuffer");
+        auto& command_queue = mesh_device_->mesh_command_queue();
+        EnqueueWriteMeshBuffer(command_queue, mesh_buffer, src, /*blocking=*/false);
+        Finish(command_queue);
+    } else {
+        // tt::log_info("Writing with: WriteToBuffer");
+        // tt::tt_metal::detail::WriteToBuffer(buffer, src);
+        // tt::tt_metal::MetalContext::instance().get_cluster().l1_barrier(device->id());
+    }
+
+    // // Validate written results are correct per core
+    // {
+    //     // result_per_core is reassigned inside ReadFromDeviceL1
+    //     std::vector<uint32_t> result_per_core;
+    //     const auto* src_ptr = static_cast<const uint8_t*>(src.data());
+
+    //     const auto& [cores, core_mapping_in_bytes] = params.expected.explicit_core_mapping_in_bytes;
+    //     for (size_t i = 0; i < cores.size(); i++) {
+    //         tt::tt_metal::detail::ReadFromDeviceL1(
+    //             device, cores[i], base_address, buffer->aligned_size_per_bank(), result_per_core,
+    //             buffer->core_type());
+
+    //         const auto* result_per_core_ptr = reinterpret_cast<const uint8_t*>(result_per_core.data());
+    //         for (const auto& chunk_mapping_in_bytes : core_mapping_in_bytes[i]) {
+    //             EXPECT_EQ(
+    //                 std::memcmp(
+    //                     src_ptr + chunk_mapping_in_bytes.src,
+    //                     result_per_core_ptr + chunk_mapping_in_bytes.dst,
+    //                     chunk_mapping_in_bytes.size),
+    //                 0);
+    //         }
+    //     }
+    // }
+
+    // std::vector<uint8_t> dst(buffer->size() / sizeof(uint8_t));
+
+    // if (cq_read) {
+    //     tt::log_debug("Reading with: EnqueueReadBuffer");
+    //     auto& command_queue = device->command_queue();
+    //     EnqueueReadBuffer(command_queue, buffer, dst.data(), /*blocking=*/false);
+    //     Finish(command_queue);
+    // } else {
+    //     tt::log_info("Reading with: ReadFromBuffer");
+    //     tt::tt_metal::detail::ReadFromBuffer(buffer, dst);
+    // }
+
+    // // Validate read results are correct
+    // EXPECT_EQ(src, dst);
+
+    // for (std::size_t logical_x = 0; logical_x < buf->device()->num_cols(); logical_x++) {
+    //     for (std::size_t logical_y = 0; logical_y < buf->device()->num_rows(); logical_y++) {
+    //         WriteShard(mesh_device_->mesh_command_queue(), buf, src_vec, MeshCoordinate(logical_y, logical_x));
+    //     }
+    // }
+
+    // for (std::size_t logical_x = 0; logical_x < buf->device()->num_cols(); logical_x++) {
+    //     for (std::size_t logical_y = 0; logical_y < buf->device()->num_rows(); logical_y++) {
+    //         std::vector<uint32_t> dst_vec = {};
+    //         ReadShard(mesh_device_->mesh_command_queue(), dst_vec, buf, MeshCoordinate(logical_y, logical_x));
+    //         EXPECT_EQ(dst_vec, src_vec);
+    //     }
+    // }
+
+    //     auto mesh_buffer_read_view = MeshBuffer::create(
+    //         sharded_read_view_config, per_device_buffer_config, mesh_device_.get(), mesh_buffer->address());
+
+    //     EnqueueWriteMeshBuffer(mesh_device_->mesh_command_queue(), mesh_buffer, src_vec);
+    //     std::vector<uint32_t> dst_vec =
+    //         std::vector<uint32_t>(global_buffer_read_shape.height() * global_buffer_read_shape.width(), 0);
+    //     EnqueueReadMeshBuffer(mesh_device_->mesh_command_queue(), dst_vec, mesh_buffer_read_view);
+    //     for (int i = 0; i < dst_vec.size(); i++) {
+    //         EXPECT_EQ(
+    //             (i / global_buffer_read_shape.width()) * global_buffer_shape.width() + i %
+    //             global_buffer_shape.width(), dst_vec[i]);
+    //     }
+    //
+    //
+    // mesh_device_->mesh_command_queue().enqueue_write_shards(mesh_buffer, input_shards, false);
+    // mesh_device_->mesh_command_queue().enqueue_read_shards(output_shards, mesh_buffer, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    BufferDistributionSpec,
+    MeshBufferReadWriteTests,
+    ::testing::Combine(
+        //::testing::Values(true, false),  // cq_write
+        //::testing::Values(true, false),  // cq_read
+        ::testing::Values(true),  // cq_write
+        ::testing::Values(true),  // cq_read
+        ::testing::Values(
             // ND sharding with multiple shards per bank; tile layout
             // page size = 32 x 32 x 2 = 2048 bytes (eg. bfloat16, uint16, etc...)
             BufferReadWriteParams{
