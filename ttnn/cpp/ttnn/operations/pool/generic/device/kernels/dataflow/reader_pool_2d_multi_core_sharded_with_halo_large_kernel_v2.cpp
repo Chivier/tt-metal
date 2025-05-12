@@ -64,18 +64,18 @@ void kernel_main() {
     constexpr uint32_t in_scalar_cb_id = get_compile_time_arg_val(19);
     constexpr uint32_t interm_reduction_cb_id = get_compile_time_arg_val(20);
     constexpr uint32_t in_one_cb_id = get_compile_time_arg_val(21);
+    uint32_t scalar_index = 0;
+    uint32_t scalars_cnt = get_arg_val<uint32_t>(0);
 
     if (reader_id == 0) {
-        cb_reserve_back(in_scalar_cb_id, 1);
         constexpr uint32_t bf16_one_u16 = bf16_one_u32 >> 16;
         // fill interm buffer with init_value
         fill_with_val(get_write_ptr(interm_reduction_cb_id), in_cb_sz, bf16_init_value);
-        // TO DO
-        if (bf16_scalar != bf16_one_u32) {
+
+        if (scalars_cnt > 0 || get_arg_val<uint32_t>(1) != bf16_one_u32) {
             // Pool operation is not maxpool
             fill_with_val(get_write_ptr(in_one_cb_id), TILE_WIDTH, bf16_one_u16);
         }
-        cb_push_back(in_scalar_cb_id, 1);
     }
 
     const uint32_t in_l1_read_base_addr = get_read_ptr(in_shard_cb_id);
@@ -91,8 +91,7 @@ void kernel_main() {
     constexpr bool wide_reduction = in_nblocks_c > 1;
     constexpr uint32_t read_bytes =
         wide_reduction ? MAX_ELE_PER_REDUCTION : in_nbytes_c;  // in_cb is MAX_ELE_PER_REDUCTION for wide reductions
-    uint32_t scalar_index = 0;
-    uint32_t scalars_cnt = get_arg_val<uint32_t>(0);
+
     while (counter < reader_nindices || (reader_id == 0 && scalar_index < scalars_cnt)) {
         if (reader_id == 0 && scalar_index < scalars_cnt) {
             uint32_t scalar_val = get_arg_val<uint32_t>(scalar_index + 1);
@@ -100,7 +99,6 @@ void kernel_main() {
             fill_with_val(get_write_ptr(in_scalar_cb_id), TILE_WIDTH, scalar_val >> 16);
             scalar_index++;
             cb_push_back(in_scalar_cb_id, 1);
-            print_full_tile(in_scalar_cb_id, scalar_index - 1);
         }
         if (counter < reader_nindices) {
             for (uint32_t c_i = 0; c_i < in_nblocks_c; c_i++) {

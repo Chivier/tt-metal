@@ -84,7 +84,7 @@ def run_avg_pool2d(
 
     ## Assertion
     assert_with_pcc(torch_output, ttnn_output, 0.99)
-    assert torch.allclose(ttnn_output, torch_output, rtol=0.02)
+    assert torch.allclose(ttnn_output, torch_output, atol=0.02)
 
 
 @pytest.mark.parametrize("device_params", [{"l1_small_size": 24576}], indirect=True)
@@ -133,13 +133,12 @@ def run_avg_pool2d(
     "ceil_mode",
     [
         False,
+        True,
     ],
 )
 @pytest.mark.parametrize(
     "count_include_pad",
-    [
-        True,
-    ],
+    [True, False],
 )
 @pytest.mark.parametrize(
     "divisor_override",
