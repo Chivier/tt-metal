@@ -1205,8 +1205,8 @@ public:
                             program, DISPATCH_DATA_BINARY, write_length, kg_transfer_info.riscvs[kernel_idx]);
                         kernel_config_buffer_offset += write_length;
 
-                        if (not this->program_in_cache_sizeB) {
-                            auto prefetch_subcmds =
+                        if (this->program_in_cache_sizeB == 0) {
+                            auto& prefetch_subcmds =
                                 kernel_bins_cmd.get_prefetch_subcmds<CQPrefetchRelayPagedPackedSubCmd>();
                             prefetch_subcmds.emplace_back(CQPrefetchRelayPagedPackedSubCmd{
                                 .start_page = (uint16_t)page_offset,
@@ -1214,7 +1214,7 @@ public:
                                 .base_addr = base_address,
                                 .length = read_length});
                         } else {
-                            auto prefetch_subcmds =
+                            auto& prefetch_subcmds =
                                 kernel_bins_cmd.get_prefetch_subcmds<CQPrefetchRelayRingbufferSubCmd>();
                             // start address for kernel bin is aligned with page boundary, consistent with the
                             // non-cached case
@@ -1229,16 +1229,16 @@ public:
             }
         }
 
-        if (this->program_in_cache_sizeB) {
+        if (this->program_in_cache_sizeB > 0) {
             for (auto& kernel_bins_cmd : kernel_bins_cmds) {
                 calculator.add_dispatch_write_packed_large(kernel_bins_cmd.dispatch_subcmds.size());
-                auto prefetch_subcmds = kernel_bins_cmd.get_prefetch_subcmds<CQPrefetchRelayRingbufferSubCmd>();
+                auto& prefetch_subcmds = kernel_bins_cmd.get_prefetch_subcmds<CQPrefetchRelayRingbufferSubCmd>();
                 calculator.add_prefetch_relay_ringbuffer(prefetch_subcmds.size());
             }
         } else {
             for (auto& kernel_bins_cmd : kernel_bins_cmds) {
                 calculator.add_dispatch_write_packed_large(kernel_bins_cmd.dispatch_subcmds.size());
-                auto prefetch_subcmds = kernel_bins_cmd.get_prefetch_subcmds<CQPrefetchRelayPagedPackedSubCmd>();
+                auto& prefetch_subcmds = kernel_bins_cmd.get_prefetch_subcmds<CQPrefetchRelayPagedPackedSubCmd>();
                 calculator.add_prefetch_relay_paged_packed(prefetch_subcmds.size());
             }
         }
@@ -1262,11 +1262,11 @@ public:
                 kernel_bins_cmd.dispatch_subcmds,
                 0,
                 DISPATCH_WRITE_OFFSET_TENSIX_L1_CONFIG_BASE);
-            if (this->program_in_cache_sizeB) {
-                auto prefetch_subcmds = kernel_bins_cmd.get_prefetch_subcmds<CQPrefetchRelayRingbufferSubCmd>();
+            if (this->program_in_cache_sizeB > 0) {
+                auto& prefetch_subcmds = kernel_bins_cmd.get_prefetch_subcmds<CQPrefetchRelayRingbufferSubCmd>();
                 device_command_sequence.add_prefetch_relay_ringbuffer(prefetch_subcmds.size(), prefetch_subcmds);
             } else {
-                auto prefetch_subcmds = kernel_bins_cmd.get_prefetch_subcmds<CQPrefetchRelayPagedPackedSubCmd>();
+                auto& prefetch_subcmds = kernel_bins_cmd.get_prefetch_subcmds<CQPrefetchRelayPagedPackedSubCmd>();
                 device_command_sequence.add_prefetch_relay_paged_packed(
                     kernel_bins_cmd.data_aligned_sizeB, prefetch_subcmds, prefetch_subcmds.size());
             }
@@ -1277,17 +1277,17 @@ private:
     size_t program_in_cache_sizeB{0};
 
     struct KernelBinsCmds {
-        std::variant<std::vector<CQPrefetchRelayPagedPackedSubCmd>, std::vector<CQPrefetchRelayRingbufferSubCmd>>
+        std::pair<std::vector<CQPrefetchRelayPagedPackedSubCmd>, std::vector<CQPrefetchRelayRingbufferSubCmd>>
             prefetch_subcmds;
         std::vector<CQDispatchWritePackedLargeSubCmd> dispatch_subcmds;
         uint32_t data_aligned_sizeB{0};
 
         template <class T>
-        std::vector<T> get_prefetch_subcmds() {
+        std::vector<T>& get_prefetch_subcmds() {
             return std::get<std::vector<T>>(prefetch_subcmds);
         }
         template <class T>
-        std::vector<T> get_prefetch_subcmds() const {
+        const std::vector<T>& get_prefetch_subcmds() const {
             return std::get<std::vector<T>>(prefetch_subcmds);
         }
     };

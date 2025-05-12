@@ -1462,7 +1462,6 @@ void Program::set_last_used_command_queue_for_testing(CommandQueue* queue) {
 }
 
 CommandQueue* Program::get_last_used_command_queue() const { return pimpl_->get_last_used_command_queue(); }
-CommandQueue* Program::get_last_used_command_queue() { return pimpl_->get_last_used_command_queue(); }
 
 uint32_t detail::ProgramImpl::get_sem_size(IDevice* device, CoreCoord logical_core, CoreType core_type) const {
     CoreCoord virtual_core = device->virtual_core_from_logical_core(logical_core, core_type);

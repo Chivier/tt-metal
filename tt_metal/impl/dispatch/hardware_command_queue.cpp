@@ -440,12 +440,13 @@ void HWCommandQueue::enqueue_program(Program& program, bool blocking) {
         program.set_program_binary_status(device_->id(), ProgramBinaryStatus::InFlight);
     }
 
-    program.set_last_used_command_queue_for_testing(this);
     // Lower the program to device: Generate dispatch commands.
     // Values in these commands will get updated based on kernel config ring
     // buffer state at runtime.
     ProgramCommandSequence& cached_program_command_sequences =
         program.generate_dispatch_commands(device_, this->prefetcher_ringbuffer_cache_sizeB_);
+    //        program.generate_dispatch_commands(device_, 0/* this->prefetcher_ringbuffer_cache_sizeB_*/);
+    program.set_last_used_command_queue_for_testing(this);
 
 #ifdef DEBUG
     if (tt::tt_metal::MetalContext::instance().rtoptions().get_validate_kernel_binaries()) {

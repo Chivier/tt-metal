@@ -17,7 +17,6 @@ namespace tt::tt_metal {
 class DeviceCommandCalculator {
 public:
     uint32_t write_offset_bytes() const { return this->cmd_write_offsetB; }
-    uint32_t prefetch_payload_bytes() const { return this->cmd_write_offsetB - sizeof(CQPrefetchCmd); }
 
     void add_dispatch_wait() {
         this->add_prefetch_relay_inline();
