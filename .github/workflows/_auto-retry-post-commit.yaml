@@ -76,7 +76,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.RETRY_WORKFLOW_TOKEN }}
         run: |
-          should_rerun=true
+          echo "should_rerun=true" >> $GITHUB_ENV
           gh api /repos/tenstorrent/tt-metal/actions/runs/${{ steps.get-run-id-and-attempt.outputs.run-id }}/attempts/${{ steps.get-run-id-and-attempt.outputs.attempt-number }}/jobs --paginate | jq -c '.jobs[] | {id: .id, conclusion: .conclusion}' | while read -r job; do
             job_id=$(echo "$job" | jq -r '.id')
             job_conclusion=$(echo "$job" | jq -r '.conclusion')
@@ -93,13 +93,13 @@ jobs:
 
                 if [[ "$level" == "failure" && "$path" != ".github"* ]]; then
                   echo "::notice title=no-continue-test-failure::This workflow failed a test on job https://github.com/tenstorrent/tt-metal/actions/runs/${{ steps.get-run-id-and-attempt.outputs.run-id }}/job/$job_id Not re-trying"
-                  should_rerun=false
+                  echo "should_rerun=false" >> $GITHUB_ENV
                 fi
               done
             fi
           done
 
-          if [[ "$should_rerun" == "true" ]]; then
+          if [[ "${{ env.should_rerun }}" == "true" ]]; then
             echo "Re-running jobs here"
             gh api --method POST \
               -H "Accept: application/vnd.github+json" \
