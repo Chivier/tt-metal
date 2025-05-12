@@ -4,40 +4,40 @@ set -eo pipefail
 
 # Function to display help
 show_help() {
-    echo "Usage: $0 [options]..."
-    echo "  -h, --help                       Show this help message."
-    echo "  -e, --export-compile-commands    Enable CMAKE_EXPORT_COMPILE_COMMANDS."
-    echo "  -c, --enable-ccache              Enable ccache for the build."
-    echo "  -b, --build-type build_type      Set the build type. Default is Release. Other options are Debug, RelWithDebInfo, and CI."
-    echo "  -t, --trace                      Enable build time trace (clang only)."
-    echo "  -a, --enable-asan                Enable AddressSanitizer."
-    echo "  -m, --enable-msan                Enable MemorySanitizer."
-    echo "  -s, --enable-tsan                Enable ThreadSanitizer."
-    echo "  -u, --enable-ubsan               Enable UndefinedBehaviorSanitizer."
-    echo "  -p, --enable-profiler            Enable Tracy profiler."
-    echo "  --install-prefix                 Where to install build artifacts."
-    echo "  --build-tests                    Build All Testcases."
-    echo "  --build-ttnn-tests               Build ttnn Testcases."
-    echo "  --build-metal-tests              Build metal Testcases."
-    echo "  --build-umd-tests                Build umd Testcases."
-    echo "  --build-programming-examples     Build programming examples."
-    echo "  --build-tt-train                 Build tt-train."
-    echo "  --build-all                      Build all optional components."
-    echo "  --release                        Set the build type as Release."
-    echo "  --development                    Set the build type as RelWithDebInfo."
-    echo "  --debug                          Set the build type as Debug."
-    echo "  --clean                          Remove build workspaces."
-    echo "  --build-static-libs              Build tt_metal (not ttnn) as a static lib (BUILD_SHARED_LIBS=OFF)"
-    echo "  --disable-unity-builds           Disable Unity builds"
-    echo "  --cxx-compiler-path              Set path to C++ compiler."
-    echo "  --c-compiler-path                Set path to C++ compiler."
-    echo "  --ttnn-shared-sub-libs           Use shared libraries for ttnn."
-    echo "  --toolchain-path                 Set path to CMake toolchain file."
+	echo "Usage: $0 [options]..."
+	echo "  -h, --help                       Show this help message."
+	echo "  -e, --export-compile-commands    Enable CMAKE_EXPORT_COMPILE_COMMANDS."
+	echo "  -c, --enable-ccache              Enable ccache for the build."
+	echo "  -b, --build-type build_type      Set the build type. Default is Release. Other options are Debug, RelWithDebInfo, and CI."
+	echo "  -t, --trace                      Enable build time trace (clang only)."
+	echo "  -a, --enable-asan                Enable AddressSanitizer."
+	echo "  -m, --enable-msan                Enable MemorySanitizer."
+	echo "  -s, --enable-tsan                Enable ThreadSanitizer."
+	echo "  -u, --enable-ubsan               Enable UndefinedBehaviorSanitizer."
+	echo "  -p, --enable-profiler            Enable Tracy profiler."
+	echo "  --install-prefix                 Where to install build artifacts."
+	echo "  --build-tests                    Build All Testcases."
+	echo "  --build-ttnn-tests               Build ttnn Testcases."
+	echo "  --build-metal-tests              Build metal Testcases."
+	echo "  --build-umd-tests                Build umd Testcases."
+	echo "  --build-programming-examples     Build programming examples."
+	echo "  --build-tt-train                 Build tt-train."
+	echo "  --build-all                      Build all optional components."
+	echo "  --release                        Set the build type as Release."
+	echo "  --development                    Set the build type as RelWithDebInfo."
+	echo "  --debug                          Set the build type as Debug."
+	echo "  --clean                          Remove build workspaces."
+	echo "  --build-static-libs              Build tt_metal (not ttnn) as a static lib (BUILD_SHARED_LIBS=OFF)"
+	echo "  --disable-unity-builds           Disable Unity builds"
+	echo "  --cxx-compiler-path              Set path to C++ compiler."
+	echo "  --c-compiler-path                Set path to C++ compiler."
+	echo "  --ttnn-shared-sub-libs           Use shared libraries for ttnn."
+	echo "  --toolchain-path                 Set path to CMake toolchain file."
 }
 
 clean() {
-    echo "INFO: Removing build artifacts!"
-    rm -rf build_Release* build_Debug* build_RelWithDebInfo* build built
+	echo "INFO: Removing build artifacts!"
+	rm -rf build_Release* build_Debug* build_RelWithDebInfo* build built
 }
 
 # Parse CLI options
@@ -104,96 +104,134 @@ LONGOPTIONS=$(echo "$LONGOPTIONS" | tr '\n' ',' | sed 's/,$//')
 # Parse the options
 PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTIONS --name "$0" -- "$@")
 if [[ $? -ne 0 ]]; then
-    # If getopt has errors
-    echo "INFO: Failed to parse arguments!"
-    show_help
-    exit 1
+	# If getopt has errors
+	echo "INFO: Failed to parse arguments!"
+	show_help
+	exit 1
 fi
 
 eval set -- "$PARSED"
 while true; do
-    case "$1" in
-        -h|--help)
-            show_help;exit 0;;
-        -e|--export-compile-commands)
-            export_compile_commands="ON";unity_builds="OFF";;
-        -c|--enable-ccache)
-            enable_ccache="ON";;
-        -t|--enable-time-trace)
-            enable_time_trace="ON";;
-        -a|--enable-asan)
-            enable_asan="ON";;
-        -m|--enable-msan)
-            enable_msan="ON";;
-        -s|--enable-tsan)
-            enable_tsan="ON";;
-        -u|--enable-ubsan)
-            enable_ubsan="ON";;
-        -b|--build-type)
-            build_type="$2";shift;;
-        -p|--enable-profiler)
-            enable_profiler="ON";;
-        --install-prefix)
-            install_prefix="$2";shift;;
-        --build-tests)
-            build_tests="ON";;
-        --build-ttnn-tests)
-            build_ttnn_tests="ON";;
-        --build-metal-tests)
-            build_metal_tests="ON";;
-        --build-umd-tests)
-            build_umd_tests="ON";;
-        --build-programming-examples)
-            build_programming_examples="ON";;
-        --build-tt-train)
-            build_tt_train="ON";;
-        --build-static-libs)
-            build_static_libs="ON";;
-        --build-all)
-            build_all="ON";;
-        --ttnn-shared-sub-libs)
-            ttnn_shared_sub_libs="ON";;
-        --disable-unity-builds)
-	    unity_builds="OFF";;
-        --cxx-compiler-path)
-            cxx_compiler_path="$2";shift;;
-        --c-compiler-path)
-            c_compiler_path="$2";shift;;
-        --toolchain-path)
-            toolchain_path="$2";shift;;
-        --release)
-            build_type="Release";;
-        --development)
-            build_type="RelWithDebInfo";;
-        --debug)
-            build_type="Debug";;
-        --clean)
-	    clean; exit 0;;
-        --)
-            shift;break;;
-    esac
-    shift
+	case "$1" in
+	-h | --help)
+		show_help
+		exit 0
+		;;
+	-e | --export-compile-commands)
+		export_compile_commands="ON"
+		unity_builds="OFF"
+		;;
+	-c | --enable-ccache)
+		enable_ccache="ON"
+		;;
+	-t | --enable-time-trace)
+		enable_time_trace="ON"
+		;;
+	-a | --enable-asan)
+		enable_asan="ON"
+		;;
+	-m | --enable-msan)
+		enable_msan="ON"
+		;;
+	-s | --enable-tsan)
+		enable_tsan="ON"
+		;;
+	-u | --enable-ubsan)
+		enable_ubsan="ON"
+		;;
+	-b | --build-type)
+		build_type="$2"
+		shift
+		;;
+	-p | --enable-profiler)
+		enable_profiler="ON"
+		;;
+	--install-prefix)
+		install_prefix="$2"
+		shift
+		;;
+	--build-tests)
+		build_tests="ON"
+		;;
+	--build-ttnn-tests)
+		build_ttnn_tests="ON"
+		;;
+	--build-metal-tests)
+		build_metal_tests="ON"
+		;;
+	--build-umd-tests)
+		build_umd_tests="ON"
+		;;
+	--build-programming-examples)
+		build_programming_examples="ON"
+		;;
+	--build-tt-train)
+		build_tt_train="ON"
+		;;
+	--build-static-libs)
+		build_static_libs="ON"
+		;;
+	--build-all)
+		build_all="ON"
+		;;
+	--ttnn-shared-sub-libs)
+		ttnn_shared_sub_libs="ON"
+		;;
+	--disable-unity-builds)
+		unity_builds="OFF"
+		;;
+	--cxx-compiler-path)
+		cxx_compiler_path="$2"
+		shift
+		;;
+	--c-compiler-path)
+		c_compiler_path="$2"
+		shift
+		;;
+	--toolchain-path)
+		toolchain_path="$2"
+		shift
+		;;
+	--release)
+		build_type="Release"
+		;;
+	--development)
+		build_type="RelWithDebInfo"
+		;;
+	--debug)
+		build_type="Debug"
+		;;
+	--clean)
+		clean
+		exit 0
+		;;
+	--)
+		shift
+		break
+		;;
+	esac
+	shift
 done
 
 # Check if there are unrecognized positional arguments left
 if [[ $# -gt 0 ]]; then
-    echo "ERROR: Unrecognized positional argument(s): $@"
-    show_help
-    exit 1
+	echo "ERROR: Unrecognized positional argument(s): $@"
+	show_help
+	exit 1
 fi
 
 # Validate the build_type
 VALID_BUILD_TYPES=("Release" "Debug" "RelWithDebInfo")
 if [[ ! " ${VALID_BUILD_TYPES[@]} " =~ " ${build_type} " ]]; then
-    echo "ERROR: Invalid build type '$build_type'. Allowed values are Release, Debug, RelWithDebInfo."
-    show_help
-    exit 1
+	echo "ERROR: Invalid build type '$build_type'. Allowed values are Release, Debug, RelWithDebInfo."
+	show_help
+	exit 1
 fi
 
 build_dir="build_$build_type"
 
 if [ "$enable_profiler" = "ON" ]; then
-    build_dir="${build_dir}_tracy"
+	build_dir="${build_dir}_tracy"
 fi
 
 install_prefix_default=$build_dir
@@ -201,7 +239,7 @@ cmake_install_prefix=${install_prefix:="${install_prefix_default}"}
 
 # Set the python environment directory if not already set
 if [ -z "$PYTHON_ENV_DIR" ]; then
-    PYTHON_ENV_DIR=$(pwd)/python_env
+	PYTHON_ENV_DIR=$(pwd)/python_env
 fi
 
 # Debug output to verify parsed options
@@ -226,100 +264,100 @@ cmake_args+=("-DCMAKE_BUILD_TYPE=$build_type")
 cmake_args+=("-DCMAKE_INSTALL_PREFIX=$cmake_install_prefix")
 
 if [ "$cxx_compiler_path" != "" ]; then
-    echo "INFO: C++ compiler: $cxx_compiler_path"
-    cmake_args+=("-DCMAKE_CXX_COMPILER=$cxx_compiler_path")
+	echo "INFO: C++ compiler: $cxx_compiler_path"
+	cmake_args+=("-DCMAKE_CXX_COMPILER=$cxx_compiler_path")
 fi
 if [ "$c_compiler_path" != "" ]; then
-    echo "INFO: C compiler: $c_compiler_path"
-    cmake_args+=("-DCMAKE_C_COMPILER=$c_compiler_path")
+	echo "INFO: C compiler: $c_compiler_path"
+	cmake_args+=("-DCMAKE_C_COMPILER=$c_compiler_path")
 fi
 
 if [ "$enable_ccache" = "ON" ]; then
-    cmake_args+=("-DCMAKE_DISABLE_PRECOMPILE_HEADERS=TRUE")
-    cmake_args+=("-DENABLE_CCACHE=TRUE")
+	cmake_args+=("-DCMAKE_DISABLE_PRECOMPILE_HEADERS=TRUE")
+	cmake_args+=("-DENABLE_CCACHE=TRUE")
 fi
 
 if [ "$enable_time_trace" = "ON" ]; then
-    cmake_args+=("-DENABLE_BUILD_TIME_TRACE=ON")
+	cmake_args+=("-DENABLE_BUILD_TIME_TRACE=ON")
 fi
 
 if [ "$enable_asan" = "ON" ]; then
-    cmake_args+=("-DENABLE_ASAN=ON")
+	cmake_args+=("-DENABLE_ASAN=ON")
 fi
 
 if [ "$enable_msan" = "ON" ]; then
-    cmake_args+=("-DENABLE_MSAN=ON")
+	cmake_args+=("-DENABLE_MSAN=ON")
 fi
 
 if [ "$enable_tsan" = "ON" ]; then
-    cmake_args+=("-DENABLE_TSAN=ON")
+	cmake_args+=("-DENABLE_TSAN=ON")
 fi
 
 if [ "$enable_ubsan" = "ON" ]; then
-    cmake_args+=("-DENABLE_UBSAN=ON")
+	cmake_args+=("-DENABLE_UBSAN=ON")
 fi
 
 if [ "$enable_profiler" = "ON" ]; then
-    cmake_args+=("-DENABLE_TRACY=ON")
+	cmake_args+=("-DENABLE_TRACY=ON")
 fi
 
 if [ "$export_compile_commands" = "ON" ]; then
-    cmake_args+=("-DCMAKE_EXPORT_COMPILE_COMMANDS=ON")
+	cmake_args+=("-DCMAKE_EXPORT_COMPILE_COMMANDS=ON")
 else
-    cmake_args+=("-DCMAKE_EXPORT_COMPILE_COMMANDS=OFF")
+	cmake_args+=("-DCMAKE_EXPORT_COMPILE_COMMANDS=OFF")
 fi
 
 if [ "$ttnn_shared_sub_libs" = "ON" ]; then
-    cmake_args+=("-DENABLE_TTNN_SHARED_SUBLIBS=ON")
+	cmake_args+=("-DENABLE_TTNN_SHARED_SUBLIBS=ON")
 fi
 
 if [ "$build_tests" = "ON" ]; then
-    cmake_args+=("-DTT_METAL_BUILD_TESTS=ON")
-    cmake_args+=("-DTTNN_BUILD_TESTS=ON")
+	cmake_args+=("-DTT_METAL_BUILD_TESTS=ON")
+	cmake_args+=("-DTTNN_BUILD_TESTS=ON")
 fi
 
 if [ "$build_metal_tests" = "ON" ]; then
-    cmake_args+=("-DTT_METAL_BUILD_TESTS=ON")
+	cmake_args+=("-DTT_METAL_BUILD_TESTS=ON")
 fi
 
 if [ "$build_ttnn_tests" = "ON" ]; then
-    cmake_args+=("-DTTNN_BUILD_TESTS=ON")
+	cmake_args+=("-DTTNN_BUILD_TESTS=ON")
 fi
 
 if [ "$build_umd_tests" = "ON" ]; then
-    cmake_args+=("-DTT_UMD_BUILD_TESTS=ON")
+	cmake_args+=("-DTT_UMD_BUILD_TESTS=ON")
 fi
 
 if [ "$build_programming_examples" = "ON" ]; then
-    cmake_args+=("-DBUILD_PROGRAMMING_EXAMPLES=ON")
+	cmake_args+=("-DBUILD_PROGRAMMING_EXAMPLES=ON")
 fi
 
 if [ "$build_tt_train" = "ON" ]; then
-    cmake_args+=("-DBUILD_TT_TRAIN=ON")
+	cmake_args+=("-DBUILD_TT_TRAIN=ON")
 fi
 
 if [ "$build_static_libs" = "ON" ]; then
-    cmake_args+=("-DBUILD_SHARED_LIBS=OFF")
+	cmake_args+=("-DBUILD_SHARED_LIBS=OFF")
 fi
 
 if [ "$unity_builds" = "ON" ]; then
-    cmake_args+=("-DTT_UNITY_BUILDS=ON")
+	cmake_args+=("-DTT_UNITY_BUILDS=ON")
 else
-    cmake_args+=("-DTT_UNITY_BUILDS=OFF")
+	cmake_args+=("-DTT_UNITY_BUILDS=OFF")
 fi
 
 if [ "$build_all" = "ON" ]; then
-    cmake_args+=("-DTT_METAL_BUILD_TESTS=ON")
-    cmake_args+=("-DTTNN_BUILD_TESTS=ON")
-    cmake_args+=("-DBUILD_PROGRAMMING_EXAMPLES=ON")
-    cmake_args+=("-DBUILD_TT_TRAIN=ON")
+	cmake_args+=("-DTT_METAL_BUILD_TESTS=ON")
+	cmake_args+=("-DTTNN_BUILD_TESTS=ON")
+	cmake_args+=("-DBUILD_PROGRAMMING_EXAMPLES=ON")
+	cmake_args+=("-DBUILD_TT_TRAIN=ON")
 fi
 
 # toolchain and cxx_compiler settings would conflict with eachother
 # only use toolchain if not setting cxx compiler directly
 if [ "$cxx_compiler_path" == "" ]; then
-    echo "INFO: CMAKE_TOOLCHAIN_FILE: $toolchain_path"
-    cmake_args+=("-DCMAKE_TOOLCHAIN_FILE=${toolchain_path}")
+	echo "INFO: CMAKE_TOOLCHAIN_FILE: $toolchain_path"
+	cmake_args+=("-DCMAKE_TOOLCHAIN_FILE=${toolchain_path}")
 fi
 
 # Create and link the build directory
@@ -328,7 +366,7 @@ ln -nsf $build_dir build
 
 echo "INFO: Configuring Project"
 echo "INFO: Running: cmake "${cmake_args[@]}""
-cmake "${cmake_args[@]}"
+cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 "${cmake_args[@]}"
 
 # Build libraries and cpp tests
 echo "INFO: Building Project"

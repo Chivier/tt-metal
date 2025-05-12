@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.18...3.30)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 
 # Sanity check, forgetting to clone submodules is a common omission and results in a poor error message
 if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tt_metal/third_party/umd/CMakeLists.txt")
