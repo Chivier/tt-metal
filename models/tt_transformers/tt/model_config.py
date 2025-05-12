@@ -745,7 +745,7 @@ class ModelArgs:
 
             # For maximum performance, set the prefill grid row to 8, even if it can fit in a smaller grid
             # prefill_rows = lambda seq_len: min(seq_len, 1024) // self.tile_size
-            prefill_rows = 8  # TODO if BH = 10, if wh = 8
+            prefill_rows = 8 if not self.device_name == "P100" else 7  # P100 has a 7x1 dram grid
             mlp1_3_grid = lambda seq_len: (
                 (8, min(min(seq_len, 1024) // 32, 4))
                 if self.is_galaxy
@@ -770,6 +770,7 @@ class ModelArgs:
                 grid_size=mlp2_grid(seq_len),
             )
 
+            # if not (self.use_fused_all_gather_matmul or self.TG) -- dram sharded
             k_dim = self.dim // self.cluster_shape[0] if self.is_galaxy else self.dim // self.num_devices
             # n_dim = self.dim // self.cluster_shape[1] if self.is_galaxy else self.dim
             n_dim = (
@@ -786,7 +787,8 @@ class ModelArgs:
                 m=num_rows(seq_len),
                 k=k_dim,
                 n=n_dim,
-                grid_size=self.find_prefill_grid(num_rows(seq_len), n_dim // self.tile_size),
+                #grid_size=self.find_prefill_grid(num_rows(seq_len), n_dim // self.tile_size),
+                grid_size=(7, 1),
                 in0_block_w=1 if self.is_galaxy else None,
                 fuse_batch=seq_len <= 1024,
             )
@@ -831,7 +833,7 @@ class ModelArgs:
                 per_core_M=max(
                     1, 8 if seq_len >= self.MAX_QKV_MM_SEQ_LEN else seq_len // self.tile_size // 8  # 8 rows
                 ),  # M / TILE_HEIGHT / Grid_Size (dynamic based on seqlen)
-                per_core_N=math.ceil(self.qkv_size / self.cluster_shape[1] / 32 / 8),  # N / TILE_WIDTH / grid width
+                per_core_N=math.ceil(self.qkv_size / self.cluster_shape[1] / 32 / 7),  # N / TILE_WIDTH / grid width
                 transpose_mcast=False,
                 fused_activation=None,
                 fuse_batch=seq_len <= self.MAX_QKV_MM_SEQ_LEN,
@@ -1604,7 +1606,8 @@ class ModelArgs:
 
     def create_dram_sharded_mem_config(self, k, n):
         """Create DRAM-sharded memory config for width-sharded tensors"""
-        dram_cores = 8 if self.arch_name == "blackhole" else 12  # WH has 12 dram cores
+        dram_cores = self.dram_grid_size.x  # WH has 12 dram cores, P150 has 8, P100 has 7
+        assert self.dram_grid_size.y == 1, "Current dram sharding assumes y dim is 1"
         padded_size = math.ceil(n / (self.tile_size * dram_cores)) * (self.tile_size * dram_cores)
         shard_spec = ttnn.ShardSpec(
             self.dram_weight_grid, (k, padded_size // dram_cores), ttnn.ShardOrientation.ROW_MAJOR
