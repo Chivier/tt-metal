@@ -26,6 +26,7 @@ on:
       - "(TG) TG nightly tests"
       - "(TG) TG unit tests"
       - "(Single-card) Frequent model and ttnn tests"
+      - "apc nightly debug run"
       - "Package and release"
     types:
       - completed
