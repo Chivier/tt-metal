@@ -8,7 +8,7 @@ from functools import partial
 import torch
 import ttnn
 from tests.sweep_framework.sweep_utils.utils import gen_shapes
-from tests.tt_eager.python_api_testing.sweep_tests.generation_funcs import gen_func_with_cast_tt
+from tests.tt_eager.python_api_testing.sweep_tests.generation_funcs import gen_func_with_cast_tt, gen_constant
 
 from tests.ttnn.utils_for_testing import check_with_pcc, start_measuring_time, stop_measuring_time
 from models.utility_functions import torch_random
@@ -429,6 +429,10 @@ def run(
         partial(torch_random, low=-100, high=100, dtype=torch.float32), input_a_dtype
     )(input_shape["self"])
 
+    torch_input_tensor_a = torch.where(
+        (torch_input_tensor_a == -1) | (torch_input_tensor_a == 1), torch.tensor(0), torch_input_tensor_a
+    )
+
     if isinstance(input_shape["other"], list):
         torch_input_tensor_b = gen_func_with_cast_tt(
             partial(torch_random, low=-100, high=100, dtype=torch.float32), input_b_dtype
@@ -465,3 +469,228 @@ def run(
     e2e_perf = stop_measuring_time(start_time)
 
     return [check_with_pcc(torch_output_tensor, output_tensor, pcc=0.99), e2e_perf]
+
+
+# Check for cases with inputs that give inf in pytorch and not in TTNN
+parameters = {
+    "corner_cases": {
+        "input_shape": [
+            {"self": [0], "other": 0.5},
+            {"self": [1, 1, 1, 10], "other": -3.4028234663852886e38},
+            {"self": [1, 1, 1, 12], "other": -3.4028234663852886e38},
+            {"self": [1, 1, 1, 14], "other": -3.4028234663852886e38},
+            {"self": [1, 1, 1, 15], "other": -3.4028234663852886e38},
+            {"self": [1, 1, 1, 17], "other": -3.4028234663852886e38},
+            {"self": [1, 1, 1, 1], "other": -3.4028234663852886e38},
+            {"self": [1, 1, 1, 201], "other": -3.4028234663852886e38},
+            {"self": [1, 1, 1, 2048], "other": -3.4028234663852886e38},
+            {"self": [1, 1, 1, 256], "other": -3.3895313892515355e38},
+            {"self": [1, 1, 1, 25], "other": -3.4028234663852886e38},
+            {"self": [1, 1, 1, 2], "other": -3.4028234663852886e38},
+            {"self": [1, 1, 1, 42], "other": -0.75},
+            {"self": [1, 1, 1, 42], "other": 1.25},
+            {"self": [1, 1, 1, 42], "other": 1.9761904761904763},
+            {"self": [1, 1, 1, 5], "other": -3.4028234663852886e38},
+            {"self": [1, 1, 1, 6], "other": -3.4028234663852886e38},
+            {"self": [1, 1, 1, 7], "other": -3.3895313892515355e38},
+            {"self": [1, 1, 1, 8], "other": -3.3895313892515355e38},
+            {"self": [1, 1, 1, 9], "other": -3.4028234663852886e38},
+            {"self": [1, 1, 1024], "other": 0.03125},
+            {"self": [1, 1, 1024], "other": 0.044715},
+            {"self": [1, 1, 1024], "other": 0.125},
+            {"self": [1, 1, 1024], "other": 0.5},
+            {"self": [1, 1, 1024], "other": 0.7978845608028654},
+            {"self": [1, 1, 224, 224], "other": 0.448},
+            {"self": [1, 1, 224, 224], "other": 0.45},
+            {"self": [1, 1, 224, 224], "other": 0.458},
+            {"self": [1, 1, 256], "other": 1.0},
+            {"self": [1, 1, 3072], "other": 0.044715},
+            {"self": [1, 1, 3072], "other": 0.5},
+            {"self": [1, 1, 3072], "other": 0.7978845608028654},
+            {"self": [1, 1, 32, 1], "other": -0.75},
+            {"self": [1, 1, 32, 1], "other": 1.25},
+            {"self": [1, 1, 32, 1], "other": 1.5625},
+            {"self": [1, 1, 4096], "other": 0.044715},
+            {"self": [1, 1, 4096], "other": 0.5},
+            {"self": [1, 1, 4096], "other": 0.7978845608028654},
+            {"self": [1, 1, 480, 640], "other": 10.0},
+            {"self": [1, 1, 512], "other": 0.04419417382415922},
+            {"self": [1, 1, 768], "other": 0.03608439182435161},
+            {"self": [1, 1, 768], "other": 0.125},
+            {"self": [1, 12, 3072], "other": 0.044715},
+            {"self": [1, 12, 3072], "other": 0.5},
+            {"self": [1, 12, 3072], "other": 0.7978845608028654},
+            {"self": [1, 12, 64, 64], "other": 16.0},
+            {"self": [1, 14, 3072], "other": 0.044715},
+            {"self": [1, 14, 3072], "other": 0.5},
+            {"self": [1, 14, 3072], "other": 0.7978845608028654},
+            {"self": [1, 15, 1024], "other": 0.044715},
+            {"self": [1, 15, 1024], "other": 0.5},
+            {"self": [1, 15, 1024], "other": 0.7978845608028654},
+            {"self": [1, 16, 64, 64], "other": 16.0},
+            {"self": [1, 160], "other": 1.0},
+            {"self": [1, 19, 1024], "other": 0.125},
+            {"self": [1, 19, 1024], "other": 32.0},
+            {"self": [1, 1], "other": 0.0},
+            {"self": [1, 1], "other": 16.0},
+            {"self": [1, 1], "other": 50258.0},
+            {"self": [1, 1], "other": 50259.0},
+            {"self": [1, 1], "other": 50359.0},
+            {"self": [1, 1], "other": 50363.0},
+            {"self": [1, 23, 40], "other": 6.283185307179586},
+            {"self": [1, 24, 49, 32], "other": 0.1767766952966369},
+            {"self": [1, 24, 64, 64], "other": 16.0},
+            {"self": [1, 24, 768], "other": 0.125},
+            {"self": [1, 3, 16, 16, 2], "other": 2.0},
+            {"self": [1, 3, 32, 32, 2], "other": 2.0},
+            {"self": [1, 3, 64, 64, 2], "other": 2.0},
+            {"self": [1, 3, 64, 64], "other": 16.0},
+            {"self": [1, 32, 49, 32], "other": 0.1767766952966369},
+            {"self": [1, 32, 6144], "other": 0.044715},
+            {"self": [1, 32, 6144], "other": 0.5},
+            {"self": [1, 32, 6144], "other": 0.79788456},
+            {"self": [1, 32, 64, 64], "other": 16.0},
+            {"self": [1, 4, 64, 64], "other": 16.0},
+            {"self": [1, 45, 3072], "other": 0.044715},
+            {"self": [1, 45, 3072], "other": 0.5},
+            {"self": [1, 45, 3072], "other": 0.7978845608028654},
+            {"self": [1, 5, 4096], "other": 0.044715},
+            {"self": [1, 5, 4096], "other": 0.5},
+            {"self": [1, 5, 4096], "other": 0.7978845608028654},
+            {"self": [1, 50, 3072], "other": 1.702},
+            {"self": [1, 50, 768], "other": 0.125},
+            {"self": [1, 59, 1024], "other": 0.125},
+            {"self": [1, 6, 64, 64], "other": 16.0},
+            {"self": [1, 7, 3072], "other": 0.044715},
+            {"self": [1, 7, 3072], "other": 0.5},
+            {"self": [1, 7, 3072], "other": 0.7978845608028654},
+            {"self": [1, 8, 64, 64], "other": 16.0},
+            {"self": [1, 9, 128], "other": 0.044715},
+            {"self": [1, 9, 128], "other": 0.5},
+            {"self": [1, 9, 128], "other": 0.7978845608028654},
+            {"self": [1, 9, 16384], "other": 0.044715},
+            {"self": [1, 9, 16384], "other": 0.5},
+            {"self": [1, 9, 16384], "other": 0.7978845608028654},
+            {"self": [1, 9, 3072], "other": 0.044715},
+            {"self": [1, 9, 3072], "other": 0.5},
+            {"self": [1, 9, 3072], "other": 0.7978845608028654},
+            {"self": [1, 9, 4096], "other": 0.044715},
+            {"self": [1, 9, 4096], "other": 0.5},
+            {"self": [1, 9, 4096], "other": 0.7978845608028654},
+            {"self": [1, 9, 8192], "other": 0.044715},
+            {"self": [1, 9, 8192], "other": 0.5},
+            {"self": [1, 9, 8192], "other": 0.7978845608028654},
+            {"self": [10, 10], "other": 16.0},
+            {"self": [10, 10], "other": 8.0},
+            {"self": [100], "other": 0.5},
+            {"self": [1066], "other": 0.600375234521576},
+            {"self": [120], "other": 0.5},
+            {"self": [128], "other": 0.125},
+            {"self": [128], "other": 0.25},
+            {"self": [128], "other": 0.5},
+            {"self": [128], "other": 1.0},
+            {"self": [128], "other": 2.0},
+            {"self": [12], "other": 32.0},
+            {"self": [136], "other": 0.5},
+            {"self": [14], "other": 0.5},
+            {"self": [15, 15], "other": 16.0},
+            {"self": [15, 15], "other": 8.0},
+            {"self": [16, 6, 49, 32], "other": 0.1767766952966369},
+            {"self": [16, 8, 49, 32], "other": 0.1767766952966369},
+            {"self": [160], "other": -9.210340371976184},
+            {"self": [160], "other": 0.5},
+            {"self": [16], "other": 0.5},
+            {"self": [16], "other": 32.0},
+            {"self": [17, 17], "other": 16.0},
+            {"self": [2, 2], "other": 16.0},
+            {"self": [2, 7, 2048], "other": 1.702},
+            {"self": [2, 7, 512], "other": 0.125},
+            {"self": [23], "other": 31.304347826086957},
+            {"self": [240], "other": 0.5},
+            {"self": [28], "other": 0.25},
+            {"self": [28], "other": 0.5},
+            {"self": [300], "other": 1.6},
+            {"self": [300], "other": 2.1333333333333333},
+            {"self": [30], "other": 0.5},
+            {"self": [320], "other": 0.5},
+            {"self": [320], "other": 1.0},
+            {"self": [320], "other": 1.5},
+            {"self": [320], "other": 2.0},
+            {"self": [3234, 2], "other": 0.5},
+            {"self": [3234], "other": 0.5},
+            {"self": [32], "other": 0.5},
+            {"self": [4, 12, 49, 32], "other": 0.1767766952966369},
+            {"self": [4, 16, 49, 32], "other": 0.1767766952966369},
+            {"self": [40], "other": 0.5},
+            {"self": [40], "other": 32.0},
+            {"self": [480], "other": 0.5},
+            {"self": [50], "other": 0.5},
+            {"self": [56], "other": 0.125},
+            {"self": [56], "other": 0.25},
+            {"self": [56], "other": 0.5},
+            {"self": [60], "other": 0.5},
+            {"self": [64, 3, 49, 32], "other": 0.1767766952966369},
+            {"self": [64, 4, 49, 32], "other": 0.1767766952966369},
+            {"self": [640], "other": 0.5},
+            {"self": [64], "other": 0.5},
+            {"self": [68], "other": 0.5},
+            {"self": [7], "other": 0.42857142857142855},
+            {"self": [800], "other": 0.6},
+            {"self": [80], "other": 0.5},
+            {"self": [8732, 2], "other": 0.5},
+            {"self": [8732], "other": 0.5},
+        ],
+        "input_a_dtype": [ttnn.bfloat16],
+        "input_a_layout": [ttnn.TILE_LAYOUT],
+        "input_a_memory_config": [ttnn.DRAM_MEMORY_CONFIG, ttnn.L1_MEMORY_CONFIG],
+    },
+}
+
+
+def run(
+    input_shape,
+    input_a_dtype,
+    input_a_layout,
+    input_a_memory_config,
+    *,
+    device,
+) -> list:
+    torch.manual_seed(0)
+
+    torch_input_tensor_a = gen_constant(input_shape["self"], 1.0)
+
+    input_tensor_a = ttnn.from_torch(
+        torch_input_tensor_a,
+        dtype=input_a_dtype,
+        layout=input_a_layout,
+        device=device,
+        memory_config=input_a_memory_config,
+    )
+
+    start_time = start_measuring_time()
+    result = ttnn.mul(input_tensor_a, input_shape["other"])
+    output_tensor = ttnn.to_torch(result)
+    e2e_perf = stop_measuring_time(start_time)
+    torch_result = gen_constant(input_shape["self"], input_shape["other"])
+
+    check_one = [check_with_pcc(torch_result, output_tensor, pcc=0.99), e2e_perf]
+
+    torch_input_tensor_a = gen_constant(input_shape["self"], -1.0)
+
+    input_tensor_a = ttnn.from_torch(
+        torch_input_tensor_a,
+        dtype=input_a_dtype,
+        layout=input_a_layout,
+        device=device,
+        memory_config=input_a_memory_config,
+    )
+
+    start_time = start_measuring_time()
+    result = ttnn.mul(input_tensor_a, input_shape["other"])
+    output_tensor = ttnn.to_torch(result)
+    e2e_perf = stop_measuring_time(start_time)
+    torch_result = gen_constant(input_shape["self"], -1 * input_shape["other"])
+
+    check_m_one = [check_with_pcc(torch_result, output_tensor, pcc=0.99), e2e_perf]
+
+    return [check_one[0] and check_m_one[0], e2e_perf]
