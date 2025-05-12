@@ -92,7 +92,7 @@ jobs:
                 path=$(echo "$annotation" | jq -r '.path')
 
                 if [[ "$level" == "failure" && "$path" != ".github"* ]]; then
-                  echo "::notice title=no-continue-test-failure::This workflow failed a test on job https://github.com/tenstorrent/tt-metal/actions/runs/${{ steps.get-run-id-and-attempt.outputs.run-id }}/job/$job_id. Not re-trying"
+                  echo "::notice title=no-continue-test-failure::This workflow failed a test on job https://github.com/tenstorrent/tt-metal/actions/runs/${{ steps.get-run-id-and-attempt.outputs.run-id }}/job/$job_id Not re-trying"
                   should_rerun=false
                 fi
               done
