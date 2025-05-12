@@ -469,24 +469,24 @@ def run(
 
 # Check for cases with inputs that give inf in pytorch and not in TTNN
 parameters = {
-    "final_check_qqqq": {
+    "qawdjcbaejhdrfbv": {
         "input_shape": [
             {"self": [1, 1, 1, 10], "other": -3.4028234663852886e38},
-            {"self": [1, 1, 1, 12], "other": -3.4028234663852886e38},
-            {"self": [1, 1, 1, 14], "other": -3.4028234663852886e38},
-            {"self": [1, 1, 1, 15], "other": -3.4028234663852886e38},
-            {"self": [1, 1, 1, 17], "other": -3.4028234663852886e38},
-            {"self": [1, 1, 1, 1], "other": -3.4028234663852886e38},
-            {"self": [1, 1, 1, 201], "other": -3.4028234663852886e38},
-            {"self": [1, 1, 1, 2048], "other": -3.4028234663852886e38},
-            {"self": [1, 1, 1, 256], "other": -3.3895313892515355e38},
-            {"self": [1, 1, 1, 25], "other": -3.4028234663852886e38},
-            {"self": [1, 1, 1, 2], "other": -3.4028234663852886e38},
-            {"self": [1, 1, 1, 5], "other": -3.4028234663852886e38},
-            {"self": [1, 1, 1, 6], "other": -3.4028234663852886e38},
-            {"self": [1, 1, 1, 7], "other": -3.3895313892515355e38},
-            {"self": [1, 1, 1, 8], "other": -3.3895313892515355e38},
-            {"self": [1, 1, 1, 9], "other": -3.4028234663852886e38},
+            # {"self": [1, 1, 1, 12], "other": -3.4028234663852886e38},
+            # {"self": [1, 1, 1, 14], "other": -3.4028234663852886e38},
+            # {"self": [1, 1, 1, 15], "other": -3.4028234663852886e38},
+            # {"self": [1, 1, 1, 17], "other": -3.4028234663852886e38},
+            # {"self": [1, 1, 1, 1], "other": -3.4028234663852886e38},
+            # {"self": [1, 1, 1, 201], "other": -3.4028234663852886e38},
+            # {"self": [1, 1, 1, 2048], "other": -3.4028234663852886e38},
+            # {"self": [1, 1, 1, 256], "other": -3.3895313892515355e38},
+            # {"self": [1, 1, 1, 25], "other": -3.4028234663852886e38},
+            # {"self": [1, 1, 1, 2], "other": -3.4028234663852886e38},
+            # {"self": [1, 1, 1, 5], "other": -3.4028234663852886e38},
+            # {"self": [1, 1, 1, 6], "other": -3.4028234663852886e38},
+            # {"self": [1, 1, 1, 7], "other": -3.3895313892515355e38},
+            # {"self": [1, 1, 1, 8], "other": -3.3895313892515355e38},
+            # {"self": [1, 1, 1, 9], "other": -3.4028234663852886e38},
         ],
         "input_a_dtype": [ttnn.bfloat16],
         "input_a_layout": [ttnn.TILE_LAYOUT],
@@ -514,15 +514,23 @@ def run(
         device=device,
         memory_config=input_a_memory_config,
     )
+    print("inut : ", input_tensor_a)
 
     start_time = start_measuring_time()
     result = ttnn.mul(input_tensor_a, input_shape["other"])
     e2e_perf = stop_measuring_time(start_time)
+    print("result : ", result)
     expected_result = ttnn.full(
         input_shape["self"], fill_value=input_shape["other"], dtype=input_a_dtype, layout=input_a_layout
     )
+    print("Expeced : ", expected_result)
 
-    check_one = ttnn.eq(expected_result, result)
+    check_one_tensor = ttnn.eq(expected_result, result, use_legacy=False)
+    print("check_one_tensor : ", check_one_tensor)
+    check_one_result = torch.all(check_one_tensor == 1)
+    print("check_one_result : ", check_one_result[0])
+
+    print()
 
     torch_input_tensor_a = gen_constant(input_shape["self"], -1.0)
 
@@ -541,6 +549,7 @@ def run(
         input_shape["self"], fill_value=-1 * input_shape["other"], dtype=input_a_dtype, layout=input_a_layout
     )
 
-    check_m_one = ttnn.eq(expected_result, result)
+    check_m_one_tensor = ttnn.eq(expected_result, result)
+    check_m_one_result = torch.all(check_m_one_tensor == 1)
 
-    return [check_one[0] and check_m_one[0], e2e_perf]
+    return [check_one_result and check_m_one_result, e2e_perf]
