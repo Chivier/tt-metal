@@ -56,6 +56,7 @@ class UFLDv2TestInfra:
         self.torch_output_tensor_1, self.torch_output_tensor_2 = torch_model(self.torch_input_tensor)
 
     def run(self):
+        print("shape is", self.input_tensor.shape)
         self.output_tensor_1 = self.ttnn_ufld_v2_model(input=self.input_tensor, batch_size=self.batch_size)
 
     def setup_l1_sharded_input(self, device, torch_input_tensor=None):
@@ -71,14 +72,16 @@ class UFLDv2TestInfra:
         grid_size = core_grid
         grid_coord = ttnn.CoreCoord(grid_size.x - 1, grid_size.y - 1)
         shard_grid = ttnn.CoreRangeSet({ttnn.CoreRange(ttnn.CoreCoord(0, 0), grid_coord)})
-        shard_spec = ttnn.ShardSpec(shard_grid, (shard_h, 16), ttnn.ShardOrientation.ROW_MAJOR)
+        shard_spec = ttnn.ShardSpec(shard_grid, (shard_h, 3), ttnn.ShardOrientation.ROW_MAJOR)
         input_mem_config = ttnn.MemoryConfig(
             ttnn.types.TensorMemoryLayout.HEIGHT_SHARDED, ttnn.types.BufferType.L1, shard_spec
         )
         torch_input_tensor = torch_input_tensor.permute(0, 2, 3, 1)
         torch_input_tensor = torch_input_tensor.reshape(1, 1, h * w * n, c)
         tt_inputs_host = ttnn.from_torch(torch_input_tensor, dtype=ttnn.bfloat16, layout=ttnn.ROW_MAJOR_LAYOUT)
-        tt_inputs_host = ttnn.pad(tt_inputs_host, [1, 1, n * h * w, 16], [0, 0, 0, 0], 0)
+        print("befroe pad in test infra", tt_inputs_host.shape)
+        # tt_inputs_host = ttnn.pad(tt_inputs_host, [1, 1, n * h * w, 16], [0, 0, 0, 0], 0)
+        print("afrer pad in test infra", tt_inputs_host.shape)
         return tt_inputs_host, input_mem_config
 
     def setup_dram_sharded_input(self, device, torch_input_tensor=None, mesh_mapper=None, mesh_composer=None):

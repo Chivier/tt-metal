@@ -300,6 +300,7 @@ class ResNet50TestInfra:
             layout=ttnn.ROW_MAJOR_LAYOUT,
             mesh_mapper=self.inputs_mesh_mapper,
         )
+        print("t4ensorh here", tt_inputs_host.shape)
         return tt_inputs_host, input_mem_config
 
     def setup_dram_sharded_input(self, device, torch_input_tensor=None):
