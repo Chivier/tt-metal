@@ -97,6 +97,7 @@ jobs:
                 fi
               done
             fi
+          done
 
           echo "Re-running jobs here"
           # gh api /repos/tenstorrent/tt-metal/actions/runs/${{ steps.get-run-id-and-attempt.outputs.run-id }}/timing
