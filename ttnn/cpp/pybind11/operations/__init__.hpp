@@ -33,6 +33,7 @@
 #include "ttnn/operations/index_fill/index_fill_pybind.hpp"
 #include "ttnn/operations/kv_cache/kv_cache_pybind.hpp"
 #include "ttnn/operations/loss/loss_pybind.hpp"
+#include "ttnn/operations/matrix/matrix_pybind.hpp"
 #include "ttnn/operations/matmul/matmul_pybind.hpp"
 #include "ttnn/operations/moreh/moreh_pybind.hpp"
 #include "ttnn/operations/normalization/normalization_pybind.hpp"
@@ -111,6 +112,9 @@ void py_module(py::module& module) {
 
     auto m_matmul = module.def_submodule("matmul", "matmul operations");
     matmul::py_module(m_matmul);
+
+    auto m_matrix = module.def_submodule("matrix", "matrix operations");
+    matrix::py_module(m_matrix);
 
     auto m_data_movement = module.def_submodule("data_movement", "data_movement operations");
     data_movement::py_module(m_data_movement);

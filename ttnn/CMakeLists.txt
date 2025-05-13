@@ -173,6 +173,12 @@ set(TTNN_OP_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/cpp/ttnn/operations/examples/example_multiple_return/example_multiple_return.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cpp/ttnn/operations/examples/example_multiple_return/example_multiple_return_pybind.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cpp/ttnn/operations/examples/examples_pybind.cpp
+    
+    ${CMAKE_CURRENT_SOURCE_DIR}/cpp/ttnn/operations/matrix/cannon/device/cannon_device_operation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cpp/ttnn/operations/matrix/cannon/device/single_core_program_factory.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cpp/ttnn/operations/matrix/cannon/device/multi_core_program_factory.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cpp/ttnn/operations/matrix/matrix_pybind.cpp
+
     ${CMAKE_CURRENT_SOURCE_DIR}/cpp/ttnn/operations/data_movement/bcast/bcast.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cpp/ttnn/operations/data_movement/bcast/bcast_types.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cpp/ttnn/operations/data_movement/bcast/bcast_pybind.cpp
@@ -627,6 +633,7 @@ set(TTNN_SUBLIBRARIES
     ttnn/operations/index_fill
     ttnn/operations/kv_cache
     ttnn/operations/loss
+    ttnn/operations/matrix
     ttnn/operations/matmul
     ttnn/operations/prefetcher
     ttnn/operations/moreh
