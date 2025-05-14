@@ -14,6 +14,8 @@ set(PROGRAMMING_EXAMPLES_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/pad/pad_multi_core.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/sharding/shard_data_rm.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/vecadd_sharding/vecadd_sharding.cpp
+    # ${CMAKE_CURRENT_SOURCE_DIR}/fused_mm_scaling_softmax/gemm.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/softmax/softmax.cpp
 )
 
 include(${PROJECT_SOURCE_DIR}/cmake/helper_functions.cmake)
